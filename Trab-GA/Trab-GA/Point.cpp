@@ -23,6 +23,8 @@ Point::Point(float a, float b)
 	shape.setRadius(3.0);
 	shape.setFillColor(sf::Color::White);
 	shape.setPosition(x, y);
+	shape.setOrigin(shape.getRadius(), shape.getRadius());
+
 }
 
 Point Point::operator=(const Point& P)
@@ -39,7 +41,9 @@ bool Point::operator==(const Point& P)
 
 bool Point::operator<(const Point& P)
 {
-	return(angle < P.angle);
+	if (y != P.y)
+		return y < P.y;
+	return x < P.x;
 }
 
 

@@ -1,105 +1,5 @@
 #include "MyGAL/FortuneAlgorithm.h" // Voronoi
-#include "Point.h"
-#include <iostream>
-#include <vector>
-#include <stack>
-
-// Angulo dos pontos
-double getAngleWith(Point P, Point S)
-{
-    if (P.getX() == S.getX()) {
-        return 0;
-    }
-
-    return (atan2(P.getY() - S.getY(), S.getX() - P.getX()) * (180.0 / M_PI));
-}
-
-// Pegar o segundo ponto na pilha
-Point top2nd(std::stack<Point> & stack) {
-    Point p = stack.top();
-    stack.pop();
-    Point second = stack.top();
-    stack.push(p);
-    return second;
-}
-
-// Anti-horário
-bool ccw(Point p1, Point p2, Point p3) {
-    return ((p2.getX() - p1.getX()) * (p3.getY() - p1.getY())
-        - (p2.getY() - p1.getY()) * (p3.getX() - p1.getX())) <= 0;
-}
-
-
-std::vector<Point> grahamScan(std::vector<Point> points) {
-
-    // Copia o vetor
-    std::vector<Point> GS(points);
-
-    std::cout << "Qtd de pontos: " << GS.size() << "\n";
-
-
-    // Organizar os pontos pelo menor Y
-    std::sort(GS.begin(), GS.end(), [](Point p1, Point p2) {
-        return p1.getY() < p2.getY();
-        });
-
-    // Retorna o ponto com menor Y
-    Point lsY = GS[0];
-
-    // Remover duplicatas
-    for (int i = 0; i < GS.size() - 1; i++) {
-        if (GS[i] == GS[i + 1]) {
-            GS.erase(GS.begin() + i);
-            i--;
-        }
-    }
-
-    // Se ficar < 3 pontos após remoção
-    if (GS.size() < 3) {
-        std::vector<Point> empty;
-        return empty;
-    }
-    std::cout << "Nova qtd de pontos: " << GS.size() << "\n";
-
-    // Ordena o restante por ângulo com eixo X
-    for (int i = 1; i < GS.size(); i++) {
-        double angle = getAngleWith(lsY,GS[i]);
-        GS[i].setAngle(angle);
-    }
-
-    std::sort(GS.begin() + 1, GS.end(), [](Point p1, Point p2) {
-        return p1.getAngle() < p2.getAngle();
-        });
-    // O primeiro ponto sempre ficará no início, pois tem ângulo -1 
-    // e o menor possível do cálculo é 0
-
-    // Criar pilha de pontos para o Convex Hull
-    // os dois primeiros pontos sempre entram
-    // o terceiro já entra para teste
-    std::stack<Point> hull;
-    hull.push(GS[0]);
-    hull.push(GS[1]);
-    hull.push(GS[2]);
-
-    // Remover da pilha enquanto [i] não fizer ângulo CCW com os anteriores
-    // depois incluir no Hull
-    for (int i = 3; i < GS.size(); i++) {
-        while (!ccw(top2nd(hull), hull.top(), GS[i]) && hull.size() >= 3) {
-            hull.pop();
-        }
-        hull.push(GS[i]);
-    }
-
-    std::vector<Point> res;
-
-    while (!hull.empty()) {
-        res.push_back(hull.top());
-        hull.pop();
-    }
-
-    return res;
-}
-
+#include "GrahamScan.h"
 
 
 
@@ -119,6 +19,14 @@ int main()
     // Texto que aparece na tela
     sf::Text instructions;
 
+    // Algoritmo
+    GrahamScan gScan;
+
+    // Vetor de vértices
+    sf::VertexArray convexHull(sf::LineStrip);
+
+    // Pontos no Convex Hull
+    std::vector<Point> ch;
 
     sf::Font font;
     if (!font.loadFromFile("Dosis-Medium.ttf"))
@@ -168,14 +76,14 @@ int main()
                 if (event.key.code == sf::Keyboard::Space){
 
                     // Conferir quantidade de pontos após remover duplicatas
-                    if (points.size() >= 3) {
+                    if (points.size() >= 3 && !isUserDone) {
                         instructions.setString("Generating Convex Hull (Graham Scan)...");
 
                         // Impedir o usuário de adicionar mais pontos
                         isUserDone = true;
 
                         
-                        std::vector<Point> ch = grahamScan(points);
+                        ch = gScan.CreateHull(points);
 
                         // Debug: Mostrar os pontos que formam o Hull
                         std::cout << std::endl << "Pontos p/ Convex Hull: " << ch.size() << std::endl;
@@ -185,26 +93,52 @@ int main()
                             {
                                 std::cout << "(" << ch[i].getX() << ", " << ch[i].getY() << ")" << std::endl;
 
-                                
-                                //// Criar linha com o próximo ponto
-                                //if (i < ch.size() - 1) {
-                                //    sf::Vertex v(sf::Vector2f(ch[i].getX(), ch[i].getY()), sf::Color::Blue, sf::Vector2f(ch[i + 1].getX(), ch[i + 1].getY()));
-                                //}
+                                // Adicionar ponto ao array
+                                sf::Vertex v(sf::Vector2f(ch[i].getX(), ch[i].getY()), sf::Color::Blue);
+                                convexHull.append(v);
 
+                                // Colorir o ponto que for o mesmo do resultado
+                                std::vector<Point>::iterator it = std::find(points.begin(), points.end(), ch[i]);
+                                if (it != points.end()) {
+                                    int index = std::distance(points.begin(), it);
+                                    points[index].getShape().setFillColor(sf::Color::Green);
+                                }
                             }
+                            // Adicionar o último ponto para fechar
+                            convexHull.append(convexHull[0]);
+
                             // Flag para verificar se pode desenhar as linhas
                             isHullDone = true;                           
 
                             instructions.setString("Z = Toggle Hull. X = Toggle Graphs. C = Restart. Click = Select origin and waypoint.");
+
+                            // Calcular Voronoi (e desenhar grafos)
+
 
                         }
                         else {
                             instructions.setString("Insuficient points. Try unique points. C = Restart.");
                         }
                     }
-                    else {
+                    else if (points.size() < 3){
                         instructions.setString("At least 3 points required. Click = Add point. Spacebar = Compute stuff");
                     }
+                }
+
+                // Resetar
+                else if (event.key.code == sf::Keyboard::C) {
+                    if (isUserDone) {
+                        points.clear();
+                        ch.clear();
+
+                        if (isHullDone) {
+                            convexHull.clear();
+                            isHullDone = false;
+                        }
+                        instructions.setString("Click = Add point. Spacebar = Compute stuff");
+                        isUserDone = false;
+                    }
+
                 }
             }
 
@@ -220,6 +154,9 @@ int main()
         }
         window.draw(instructions);
 
+        if (isHullDone) {
+            window.draw(convexHull);
+        }
 
 
         window.display();
