@@ -1,3 +1,4 @@
+#include "MyGAL/FortuneAlgorithm.h" // Voronoi
 #include "GrahamScan.h"
 
 
@@ -26,8 +27,6 @@ int main()
 
     // Pontos no Convex Hull
     std::vector<Point> ch;
-   
-
 
     sf::Font font;
     if (!font.loadFromFile("Dosis-Medium.ttf"))
@@ -98,6 +97,12 @@ int main()
                                 sf::Vertex v(sf::Vector2f(ch[i].getX(), ch[i].getY()), sf::Color::Blue);
                                 convexHull.append(v);
 
+                                // Colorir o ponto que for o mesmo do resultado
+                                std::vector<Point>::iterator it = std::find(points.begin(), points.end(), ch[i]);
+                                if (it != points.end()) {
+                                    int index = std::distance(points.begin(), it);
+                                    points[index].getShape().setFillColor(sf::Color::Green);
+                                }
                             }
                             // Adicionar o último ponto para fechar
                             convexHull.append(convexHull[0]);
@@ -107,7 +112,9 @@ int main()
 
                             instructions.setString("Z = Toggle Hull. X = Toggle Graphs. C = Restart. Click = Select origin and waypoint.");
 
-                            
+                            // Calcular Voronoi (e desenhar grafos)
+
+
                         }
                         else {
                             instructions.setString("Insuficient points. Try unique points. C = Restart.");
@@ -139,11 +146,6 @@ int main()
        
         }
 
-        // Calcular Voronoi (e desenhar grafos)
-        auto voronoi = gScan.generateDiagram(gScan.generatePoints<Point>(ch));
-        // mudar para pontos normalizados
-        window.setView(sf::View(sf::FloatRect(-0.1f, -0.1f, 1.2f, 1.2f)));
-
         window.clear();
 
         // Desenhar os pontos
@@ -154,11 +156,8 @@ int main()
 
         if (isHullDone) {
             window.draw(convexHull);
-            // voronoi
-            gScan.drawDiagram(window, voronoi);
         }
 
-        
 
         window.display();
     }

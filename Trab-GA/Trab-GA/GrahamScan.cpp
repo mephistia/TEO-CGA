@@ -125,13 +125,3 @@ double GrahamScan::getAngleWith(Point P, Point S)
 
 	return (atan2(P.getY() - S.getY(), S.getX() - P.getX()) * (180.0 / M_PI));
 }
-
-double GrahamScan::normalize(double value, double min, double max)
-{
-    return (value - min) / (max - min);
-}
-
-double GrahamScan::denormalize(double value, double min, double max)
-{
-    return (value * (max - min) + min);
-}
