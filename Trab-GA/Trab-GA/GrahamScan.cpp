@@ -2,13 +2,14 @@
 
 GrahamScan::GrahamScan()
 {
+    bbox = sf::Rect<double>(0, 0, w_width, w_height);
 }
 
 GrahamScan::~GrahamScan()
 {
 }
 
-std::vector<Point> GrahamScan::CreateHull(std::vector<Point> points)
+std::vector<Point> GrahamScan::CreateHull(std::vector<Point>& points)
 {
     // Vetor p/ resultado
     std::vector<Point> res;
@@ -34,6 +35,10 @@ std::vector<Point> GrahamScan::CreateHull(std::vector<Point> points)
             i--;
         }
     }
+
+    points = GS;
+
+    // Atualizar os pontos com duplicatas removidas
 
     // Se ficar < 3 pontos após remoção
     if (GS.size() < 3) {
@@ -106,7 +111,7 @@ int GrahamScan::ccw(Point a, Point b, Point c)
 	return 0;
 }
 
-// Pegar o segundo ponto na pilha
+// Pegar o segundo ponto na pilha (retornar)
 Point GrahamScan::top2nd(std::stack<Point>& stack)
 {
 	Point p = stack.top();
@@ -116,12 +121,10 @@ Point GrahamScan::top2nd(std::stack<Point>& stack)
 	return second;
 }
 
-// Ângulo entre dois pontos e o eixo x
-double GrahamScan::getAngleWith(Point P, Point S)
+sf::Rect<double> GrahamScan::getBBox()
 {
-	if (P.getX() == S.getX()) {
-		return 0;
-	}
-
-	return (atan2(P.getY() - S.getY(), S.getX() - P.getX()) * (180.0 / M_PI));
+    return bbox;
 }
+
+
+

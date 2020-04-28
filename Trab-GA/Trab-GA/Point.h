@@ -1,7 +1,11 @@
 #define _USE_MATH_DEFINES
 #pragma once
+constexpr auto w_width = 900;
+constexpr auto w_height = 900;
+
 #include <math.h>   
 #include "SFML/Graphics.hpp" // Círculo
+#include <VoronoiDiagramGenerator.h>
 
 class Point
 {
@@ -28,6 +32,7 @@ public:
 	
 	sf::CircleShape getShape();
 
+	sf::Vector2<double> getVector();
 
 private:
 	float x, y;

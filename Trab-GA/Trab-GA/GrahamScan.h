@@ -1,15 +1,17 @@
 #pragma once
+
 #include "Point.h"
 #include <iostream>
 #include <vector>
 #include <stack>
+
 class GrahamScan
 {
 public:
 	GrahamScan();
 	~GrahamScan();
 
-	std::vector<Point> CreateHull(std::vector<Point> points);
+	std::vector<Point> CreateHull(std::vector<Point>& points);
 
 	bool PolarAngle(Point a, Point b);
 
@@ -19,10 +21,13 @@ public:
 
 	Point top2nd(std::stack<Point>& stack);
 
-	double getAngleWith(Point P, Point S);
+	sf::Rect<double> getBBox();
 
 
 private:
+	// Ponto de menor Y
 	Point pivot;
+	// Bounding Box para o desenho do Voronoi
+	sf::Rect<double> bbox;
 };
 

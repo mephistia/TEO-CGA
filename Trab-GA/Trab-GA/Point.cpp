@@ -81,3 +81,11 @@ sf::CircleShape Point::getShape()
 {
 	return shape;
 }
+
+
+
+sf::Vector2<double> Point::getVector()
+{
+	return sf::Vector2<double>(x,y);
+}
+

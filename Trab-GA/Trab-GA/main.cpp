@@ -1,12 +1,25 @@
-#include "MyGAL/FortuneAlgorithm.h" // Voronoi
-#include "GrahamScan.h"
+/*
+Biblioteca multimídia SFML (Simple and Fast Multimedia Library)
+    https://www.sfml-dev.org/
+Biblioteca de Voronoi por Mark Dally (adaptada por Jonny Paton para SFML)
+    https://github.com/JonnyPtn/Voronoi
+*/
 
+#include "Graph.h"
 
+void genSites(std::vector<sf::Vector2<double>>& sites, sf::Rect<double>& bbox, unsigned int numSites, std::vector<Point> points) {
+    sites.reserve(numSites);
+
+    for (Point& p : points) {
+        sites.push_back(p.getVector());
+    }
+
+}
 
 int main()
 {
     // Criar janela
-    sf::RenderWindow window(sf::VideoMode(800, 600), "Melhor Rota");
+    sf::RenderWindow window(sf::VideoMode(w_width, w_height), "Melhor Rota");
 
     // Criar vetor de pontos
     std::vector<Point> points;
@@ -15,6 +28,10 @@ int main()
     bool isUserDone = false;
     bool isHullDone = false;
     bool isWaypointChosen = false;
+
+    bool toggleHull = true;
+    bool toggleVoronoi = true;
+    bool toggleGraphs = true;
 
     // Texto que aparece na tela
     sf::Text instructions;
@@ -28,6 +45,53 @@ int main()
     // Pontos no Convex Hull
     std::vector<Point> ch;
 
+    // Gerar Voronoi
+    std::vector<sf::Vector2<double>>* sites;
+    VoronoiDiagramGenerator vdg = VoronoiDiagramGenerator();
+    std::unique_ptr<Diagram> diagram;
+    std::vector<sf::Vertex> vertices;
+
+    // Gerar Grafo
+    Graph graph;
+
+
+    auto updateVisuals = [&]() {
+        vertices.clear();
+        vertices.reserve(diagram->cells.size() + (diagram->edges.size() * 2));
+        for (auto c : diagram->cells)
+        {
+            //red point for each cell site
+            sf::Vector2<double>& p = c->site.p;
+            vertices.push_back({ { static_cast<float>(p.x),static_cast<float>(p.y)}, sf::Color::White });
+        }
+
+        for (Edge* e : diagram->edges)
+        {
+            if (e->vertA && e->vertB)
+            {
+                sf::Vector2<double>& p1 = *e->vertA;
+                sf::Vector2<double>& p2 = *e->vertB;
+
+                //green line for each edge
+                vertices.push_back({ { static_cast<float>(p1.x),static_cast<float>(p1.y) },sf::Color(50,50,50) });
+                vertices.push_back({ { static_cast<float>(p2.x),static_cast<float>(p2.y) },sf::Color(50,50,50) });
+            }
+        }
+    };
+
+
+    auto generateVoronoi = [&](int nPoints) {
+        sites = new std::vector<sf::Vector2<double>>();
+        sf::Rect<double> bbox = gScan.getBBox();
+        genSites(*sites, bbox, nPoints, points);
+        Diagram* compute = vdg.compute(*sites, bbox);
+        graph.generateGraph(*compute);
+        diagram.reset(compute);
+        delete sites;
+        updateVisuals();        
+    };
+
+
     sf::Font font;
     if (!font.loadFromFile("Dosis-Medium.ttf"))
     {
@@ -38,7 +102,7 @@ int main()
         instructions.setString("Click = Add point. Spacebar = Compute stuff");
         instructions.setCharacterSize(18);
         instructions.setFillColor(sf::Color::White);
-        instructions.setPosition(10, 570);
+        instructions.setPosition(10, w_height - 35);
     }
 
 
@@ -60,8 +124,8 @@ int main()
                     sf::Vector2i mPos = sf::Mouse::getPosition(window);
 
                     // Criar Ponto se estiver dentro da margem
-                    if ((mPos.x > 25 && mPos.x < 775) &&
-                        (mPos.y > 25 && mPos.y < 575) &&
+                    if ((mPos.x > 25 && mPos.x < w_width - 25) &&
+                        (mPos.y > 25 && mPos.y < w_height - 25) &&
                         isUserDone == false) {
                         Point mousePoint(mPos.x, mPos.y);
                         points.push_back(mousePoint);
@@ -96,13 +160,6 @@ int main()
                                 // Adicionar ponto ao array
                                 sf::Vertex v(sf::Vector2f(ch[i].getX(), ch[i].getY()), sf::Color::Blue);
                                 convexHull.append(v);
-
-                                // Colorir o ponto que for o mesmo do resultado
-                                std::vector<Point>::iterator it = std::find(points.begin(), points.end(), ch[i]);
-                                if (it != points.end()) {
-                                    int index = std::distance(points.begin(), it);
-                                    points[index].getShape().setFillColor(sf::Color::Green);
-                                }
                             }
                             // Adicionar o último ponto para fechar
                             convexHull.append(convexHull[0]);
@@ -111,8 +168,6 @@ int main()
                             isHullDone = true;                           
 
                             instructions.setString("Z = Toggle Hull. X = Toggle Graphs. C = Restart. Click = Select origin and waypoint.");
-
-                            // Calcular Voronoi (e desenhar grafos)
 
 
                         }
@@ -133,6 +188,7 @@ int main()
 
                         if (isHullDone) {
                             convexHull.clear();
+                            graph.clearGraph();
                             isHullDone = false;
                         }
                         instructions.setString("Click = Add point. Spacebar = Compute stuff");
@@ -155,7 +211,18 @@ int main()
         window.draw(instructions);
 
         if (isHullDone) {
+            // Desenhar Voronoi
+            auto pointCount = points.size();
+            generateVoronoi(pointCount);
+            window.draw(vertices.data(), pointCount, sf::PrimitiveType::Points);
+            window.draw(vertices.data() + pointCount, vertices.size() - pointCount, sf::PrimitiveType::Lines);
+           
+            // Desenhar grafos
+            graph.drawGraph(window);
+
+            // Desenhar Convex Hull
             window.draw(convexHull);
+            
         }
 
 
