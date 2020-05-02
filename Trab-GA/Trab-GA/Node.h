@@ -1,8 +1,8 @@
 #pragma once
 #include <SFML/System/Vector2.hpp>
 struct Node {
-
-	Edge* edge;
-	double cost = 0; // distância
-	Node* next; // próxima edge para cálculo
+	int id;
+	sf::Vector2<double> point; // Ponto do nodo (Site.p é igual)
+	double cost = 0; // distância entre pontos
+	Node* next; // próximo nodo
 };

@@ -54,13 +54,12 @@ int main()
     // Gerar Grafo
     Graph graph;
 
-
+    // Gerar desenho
     auto updateVisuals = [&]() {
         vertices.clear();
         vertices.reserve(diagram->cells.size() + (diagram->edges.size() * 2));
         for (auto c : diagram->cells)
         {
-            //red point for each cell site
             sf::Vector2<double>& p = c->site.p;
             vertices.push_back({ { static_cast<float>(p.x),static_cast<float>(p.y)}, sf::Color::White });
         }
@@ -72,7 +71,6 @@ int main()
                 sf::Vector2<double>& p1 = *e->vertA;
                 sf::Vector2<double>& p2 = *e->vertB;
 
-                //green line for each edge
                 vertices.push_back({ { static_cast<float>(p1.x),static_cast<float>(p1.y) },sf::Color(50,50,50) });
                 vertices.push_back({ { static_cast<float>(p2.x),static_cast<float>(p2.y) },sf::Color(50,50,50) });
             }
@@ -80,6 +78,7 @@ int main()
     };
 
 
+    // Gerar Voronoi
     auto generateVoronoi = [&](int nPoints) {
         sites = new std::vector<sf::Vector2<double>>();
         sf::Rect<double> bbox = gScan.getBBox();
