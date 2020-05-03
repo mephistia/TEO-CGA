@@ -13,7 +13,6 @@ void Graph::generateGraph(Diagram diagram)
 	// pegar edges
 	allEdges = diagram.edges;
 	allCells = diagram.cells;
-	nodeId = 0;
 
 	// ordenar por ponto com menor x (ponto à esquerda da edge)
 	std::sort(allEdges.begin(), allEdges.end(), [](Edge *a, Edge *b) {
@@ -68,16 +67,13 @@ void Graph::generateGraph(Diagram diagram)
 			}
 
 			// Nodo de adjacência
-			Node* newNode = createNode(dest, distance, head[srcPos], nodeId);
+			Node* newNode = createNode(dest, distance, head[srcPos]);
 			head[srcPos] = newNode;
-			nodeId++;
-
 
 			// Grafo de duas vias
-			newNode = createNode(src, distance, head[destPos],nodeId);
+			newNode = createNode(src, distance, head[destPos]);
 			head[destPos] = newNode;
-			nodeId++;
-				
+			
 			// Linhas
 			sf::Vector2<sf::Vertex> line(begin, end);
 			sf::Vector2<sf::Vertex> lineEnd(end, begin);
@@ -109,7 +105,8 @@ void Graph::generateGraph(Diagram diagram)
 	}
 
 	// teste de visitação
-	BFS(head[0]->point);
+	//BFS(head[0]->point, head[points-1]->point);
+	AStar(head[0]->point, head[points - 1]->point);
 }
 
 void Graph::printNodes(Node* ptr, sf::Vector2<double> i)
@@ -125,23 +122,17 @@ void Graph::printNodes(Node* ptr, sf::Vector2<double> i)
 	std::cout << "\n";
 }
 
-Node* Graph::createNode(sf::Vector2<double> point, double cost, Node* head, int id)
+Node* Graph::createNode(sf::Vector2<double> point, double cost, Node* head)
 {
 	Node* newNode = new Node;
 	newNode->point = point;
 	newNode->cost = cost;
 	newNode->next = head;
-	newNode->id = id;
 	return newNode;
 }
 
-// Recuperar ponteiro para a lista de destinos (direto)
-Node* Graph::getHead(int id)
-{
-	return head[id];
-}
 
-// Recuperar ponteiro para a lista de destinos (por ponto)
+// Recuperar ponteiro para a lista de destinos do ponto
 Node* Graph::getHead(sf::Vector2<double> point)
 {
 	// tamanho de head é allCells.size()
@@ -156,23 +147,12 @@ Node* Graph::getHead(sf::Vector2<double> point)
 	return nullptr;
 }
 
-// Retornar vetor dos pontos destino (melhor manipulação)
-std::vector<sf::Vector2<double>> Graph::neighbors(sf::Vector2<double> point)
-{
-	Node* ptr = getHead(point);
-	std::vector<sf::Vector2<double>> neighbors;
-	while (ptr != nullptr) {
-		neighbors.push_back(ptr->point);
-		ptr = ptr->next;
-	}
-	return neighbors;
-}
-
+// Encontrar nodos de destino
 std::vector<Node*> Graph::neighborsN(Node* N)
 {
 	std::vector<Node*> neighbors;
-	Node* ptr = getHead(N->point); // Não lançou o ponto?
-	// N é head
+	Node* ptr = getHead(N->point);
+
 	while (ptr != nullptr) {
 		neighbors.push_back(ptr);
 		ptr = ptr->next;
@@ -180,65 +160,71 @@ std::vector<Node*> Graph::neighborsN(Node* N)
 	return neighbors;
 }
 
-
-// Breadth First Search
-void Graph::BFS(sf::Vector2<double> startPoint)
+std::vector<Node*> Graph::neighborsN(sf::Vector2<double> N)
 {
+	std::vector<Node*> neighbors;
+
+	Node* ptr = getHead(N);
+
+	while (ptr != nullptr) {
+		neighbors.push_back(ptr);
+		ptr = ptr->next;
+	}
+
+	return neighbors;
+}
 
 
-	//// Mapear
-	//std::queue<sf::Vector2<double>> frontier;
-	//frontier.push(startPoint);
+// A*
+void Graph::AStar(sf::Vector2<double> startPoint, sf::Vector2<double> goalPoint)
+{
+	PriorityQueue frontier;
+	frontier.put(startPoint, 0);
 
-	//// Set de pontos únicos
-	//std::unordered_set<sf::Vector2<double>> visited;
-	//visited.insert(startPoint);
+	std::unordered_map<sf::Vector2<double>, sf::Vector2<double>> cameFrom;
+	cameFrom[startPoint] = startPoint;
 
-	// Tentar com Node
-	Node* startPtr = getHead(startPoint);
+	std::unordered_map<sf::Vector2<double>, double> distance;
+	distance[startPoint] = 0;
+
+	std::cout << "Visiting " << startPoint.x << ", " << startPoint.y << '\n';
 
 
-	std::queue<Node*> frontierN;
-	frontierN.push(startPtr);
+	while (!frontier.empty()) {
+		sf::Vector2<double> current = frontier.get(); // copia o elemento
 
-	std::unordered_set<Node*> visitedN;
-	visitedN.insert(startPtr);
+		 //Se chegou no ponto final, sai do loop
+		if (current == goalPoint)
+			break;
 
-	std::cout << "Visiting " << startPtr->point.x << ", " << startPtr->point.y << '\n';
-
-	//while (!frontier.empty()) {
-	//	sf::Vector2<double> current = frontier.front(); // copia primeiro elemento
-	//	frontier.pop(); // remove primeiro elemento
-	//	std::cout << "Visiting " << current.x << ", " << current.y << '\n';
-
-	//	// Para cada destino
-	//	for (sf::Vector2<double> next : neighbors(current)) {
-	//		if (visited.find(next) == visited.end()) { // se não achou no visitado
-	//			frontier.push(next); // passa como próxima fronteira
-	//			visited.insert(next); // e insere como visitado
-	//		}
-	//	}
-	//}
-
-	while (!frontierN.empty()) {
-		Node* current = frontierN.front(); // copia o primeiro elemento
-		frontierN.pop();
-
-		// Para cada destino
+		 //Para cada destino
+		 //~com vector para evitar for dentro de for O(N²)~
 		for (Node* next : neighborsN(current)) {
-			auto pos = std::find_if(visitedN.begin(), visitedN.end(), 
-				[next](const Node* m) -> bool {return 
-				((int)m->point.x == (int)next->point.x) && 
-				((int)m->point.y == (int)next->point.y); 
+			 //Calcula novo custo
+			double newCost = distance[current] + dist(current, next->point);
+
+			auto pos = std::find_if(distance.begin(), distance.end(), 
+				[next](std::pair<const sf::Vector2<double>, double> n) -> bool {return
+				((int)n.first.x == (int)next->point.x) && 
+				((int)n.first.y == (int)next->point.y); 
 				});
-			std::cout << "Begin comparing nodes!" << "\n";
-			if (pos == visitedN.end()) { // se não achou no visitado
-				frontierN.push(next); // passa como próxima fronteira
-				visitedN.insert(next); // e insere como visitado
+
+			 //se o custo do próximo é = ou < que a distância
+			if (distance.find(next->point) == distance.end() || newCost < distance[next->point]) { 
+				// define nova distância
+				distance[next->point] = newCost;
+				// adiciona na fronteira com prioridade do custo atual
+				// até o calculo do custo final
+				double priority = newCost + dist(next->point, goalPoint);
+				frontier.put(next->point, priority);
+				cameFrom[next->point] = current;
 				std::cout << "Visiting " << next->point.x << ", " << next->point.y << '\n';
 			}
 		}
 	}
+
+	std::cout << "Goal point! \n";
+
 }
 
 
@@ -249,6 +235,12 @@ double Graph::dist(sf::Vertex p, sf::Vertex q)
 {
 	return std::sqrt(std::pow(q.position.x - p.position.x, 2) + std::pow(q.position.y - p.position.y, 2));
 }
+
+double Graph::dist(sf::Vector2<double> p, sf::Vector2<double> q)
+{
+	return std::sqrt(std::pow(q.x - p.x, 2) + std::pow(q.y - p.y, 2));
+}
+
 
 void Graph::drawGraph(sf::RenderWindow &window)
 {

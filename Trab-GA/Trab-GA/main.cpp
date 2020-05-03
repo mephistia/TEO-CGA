@@ -36,7 +36,7 @@ int main()
     // Texto que aparece na tela
     sf::Text instructions;
 
-    // Algoritmo
+    // Graham Scan
     GrahamScan gScan;
 
     // Vetor de vértices
