@@ -56,17 +56,17 @@ public:
 
 	void generateGraph(Diagram diagram);
 
-	void printNodes(Node* ptr, sf::Vector2<double> i);
+	void drawAStarPath(sf::Vector2<double> fromPoint, sf::Vector2<double> toPoint, sf::RenderWindow &window);
 
-	Node* createNode(sf::Vector2<double> point, double cost, Node* head);
+	inline Node* createNode(sf::Vector2<double> point, double cost, Node* head);
 
-	Node* getHead(sf::Vector2<double> point);
+	inline Node* getHead(sf::Vector2<double> point);
 
-	std::vector<Node*> neighborsN(Node* N);
+	inline std::vector<Node*> neighborsN(Node* N);
 
-	std::vector<Node*> neighborsN(sf::Vector2<double> N);
+	inline std::vector<Node*> neighborsN(sf::Vector2<double> N);
 
-	void AStar(sf::Vector2<double> startPoint, sf::Vector2<double> goalPoint);
+	inline void AStar(sf::Vector2<double> startPoint, sf::Vector2<double> goalPoint);
 
 	inline double dist(sf::Vertex p, sf::Vertex q);
 
@@ -76,6 +76,8 @@ public:
 
 	void clearGraph();
 
+	void clearAStarPath();
+
 	inline friend bool operator==(const sf::Vector2<sf::Vertex>& a, const sf::Vector2<sf::Vertex>& b);
 	inline friend bool operator<(const sf::Vector2<double>& a, const sf::Vector2<double>& b);
 	inline friend bool operator>(const sf::Vector2<double>& a, const sf::Vector2<double>& b);
@@ -83,7 +85,8 @@ public:
 private:
 
 	// Linhas que serão desenhadas
-	std::vector<sf::Vector2<sf::Vertex>> lines;
+	std::vector<sf::Vector2<sf::Vertex>> lines; // Grafo
+	std::vector<sf::Vector2<sf::Vertex>> path; // A*
 
 	// Lista de adjacência
 	Node** head;
@@ -91,6 +94,10 @@ private:
 	std::vector<Edge*> allEdges;
 	std::vector<Cell*> allCells;
 
+	// Posições
+	std::unordered_map<sf::Vector2<double>, sf::Vector2<double>> cameFrom;
+
+	int headId;
 };
 
 

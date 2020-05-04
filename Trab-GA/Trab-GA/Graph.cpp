@@ -35,6 +35,7 @@ void Graph::generateGraph(Diagram diagram)
 		head[i] = nullptr;
 	}
 
+	headId = 0;
 
 	for (int i = 0; i < edges; i++) {
 
@@ -69,10 +70,12 @@ void Graph::generateGraph(Diagram diagram)
 			// Nodo de adjacência
 			Node* newNode = createNode(dest, distance, head[srcPos]);
 			head[srcPos] = newNode;
+			headId++;
 
 			// Grafo de duas vias
 			newNode = createNode(src, distance, head[destPos]);
 			head[destPos] = newNode;
+			headId++;
 			
 			// Linhas
 			sf::Vector2<sf::Vertex> line(begin, end);
@@ -90,36 +93,43 @@ void Graph::generateGraph(Diagram diagram)
 				std::cout << "(" << line.x.position.x << ", " << line.x.position.y << ") -> ";
 				std::cout << "(" << line.y.position.x << ", " << line.y.position.y << ")\n";
 			}
+
 		}
 	}
-
-
-	// teste para imprimir os nodos
-	for (int i = 0; i < points; i++) {
-		std::cout << "Point " << i << ": \n";
-		// Cada ponto tem seu conjunto de pontos
-	
-		// site.p (ponto source)
-		// head[i] (ponteiro para o início da lista de destinos do source)
-		printNodes(head[i], allCells[i]->site.p);
-	}
-
-	// teste de visitação
-	//BFS(head[0]->point, head[points-1]->point);
-	AStar(head[0]->point, head[points - 1]->point);
 }
 
-void Graph::printNodes(Node* ptr, sf::Vector2<double> i)
+// Desenhar após o usuário clicar em dois pontos
+void Graph::drawAStarPath(sf::Vector2<double> fromPoint, sf::Vector2<double> toPoint, sf::RenderWindow &window)
 {
-	while (ptr != nullptr)
-	{
-		std::cout << "(" << "{" << i.x << " ," << i.y << "}" << ", " << "{" << ptr->point.x << " ," << ptr->point.y << "}"
-			<< ", Cost: " << ptr->cost << ") \n";
+	// gerar o caminho
+	AStar(fromPoint, toPoint);
 
-		ptr = ptr->next;
+	// criar vetor de linhas
+
+	// guarda todas as linhas
+	for (std::pair<sf::Vector2<double>, sf::Vector2<double>> mLine : cameFrom) {
+
+		// Transformar em int para evitar erros de desvio
+		sf::Vertex begin(sf::Vector2f((sf::Vector2<int>)mLine.first), sf::Color::Green);
+		sf::Vertex end(sf::Vector2f((sf::Vector2<int>)mLine.second), sf::Color::Green);
+
+		sf::Vector2<sf::Vertex> line(end, begin);
+
+		path.push_back(line);
+		std::reverse(std::begin(path), std::end(path));
 	}
 
-	std::cout << "\n";
+	// desenhar as linhas
+	for (sf::Vector2<sf::Vertex> vec : path) {
+
+		sf::Vertex pathline[] = {
+			vec.x,
+			vec.y
+		};
+
+		window.draw(pathline, 2, sf::Lines);
+	}
+
 }
 
 Node* Graph::createNode(sf::Vector2<double> point, double cost, Node* head)
@@ -181,7 +191,6 @@ void Graph::AStar(sf::Vector2<double> startPoint, sf::Vector2<double> goalPoint)
 	PriorityQueue frontier;
 	frontier.put(startPoint, 0);
 
-	std::unordered_map<sf::Vector2<double>, sf::Vector2<double>> cameFrom;
 	cameFrom[startPoint] = startPoint;
 
 	std::unordered_map<sf::Vector2<double>, double> distance;
@@ -191,6 +200,7 @@ void Graph::AStar(sf::Vector2<double> startPoint, sf::Vector2<double> goalPoint)
 
 
 	while (!frontier.empty()) {
+
 		sf::Vector2<double> current = frontier.get(); // copia o elemento
 
 		 //Se chegou no ponto final, sai do loop
@@ -198,11 +208,11 @@ void Graph::AStar(sf::Vector2<double> startPoint, sf::Vector2<double> goalPoint)
 			break;
 
 		 //Para cada destino
-		 //~com vector para evitar for dentro de for O(N²)~
 		for (Node* next : neighborsN(current)) {
+
 			 //Calcula novo custo
 			double newCost = distance[current] + dist(current, next->point);
-
+ 
 			auto pos = std::find_if(distance.begin(), distance.end(), 
 				[next](std::pair<const sf::Vector2<double>, double> n) -> bool {return
 				((int)n.first.x == (int)next->point.x) && 
@@ -260,5 +270,12 @@ void Graph::clearGraph()
 {
 	lines.clear();
 	head = nullptr;
+	headId = 0;
+}
+
+void Graph::clearAStarPath()
+{
+	cameFrom.clear();
+	path.clear();
 }
 

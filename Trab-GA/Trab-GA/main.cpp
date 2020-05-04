@@ -148,14 +148,10 @@ int main()
                         
                         ch = gScan.CreateHull(points);
 
-                        // Debug: Mostrar os pontos que formam o Hull
-                        std::cout << std::endl << "Pontos p/ Convex Hull: " << ch.size() << std::endl;
                         if (ch.size() > 0) {
     
                             for (int i = 0; i < ch.size(); i++)
-                            {
-                                std::cout << "(" << ch[i].getX() << ", " << ch[i].getY() << ")" << std::endl;
-
+                            {                                
                                 // Adicionar ponto ao array
                                 sf::Vertex v(sf::Vector2f(ch[i].getX(), ch[i].getY()), sf::Color::Blue);
                                 convexHull.append(v);
@@ -165,7 +161,7 @@ int main()
 
                             // Flag para verificar se pode desenhar as linhas
                             isHullDone = true;                           
-
+                            toggleGraphs = true;
                             instructions.setString("Z = Toggle Hull. X = Toggle Graphs. C = Restart. Click = Select origin and waypoint.");
 
 
@@ -188,12 +184,18 @@ int main()
                         if (isHullDone) {
                             convexHull.clear();
                             graph.clearGraph();
+                            graph.clearAStarPath();
                             isHullDone = false;
                         }
                         instructions.setString("Click = Add point. Spacebar = Compute stuff");
                         isUserDone = false;
                     }
 
+                }
+                else if (event.key.code == sf::Keyboard::X) {
+                    if (isHullDone) {
+                        toggleGraphs = !toggleGraphs;
+                    }
                 }
             }
 
@@ -216,12 +218,20 @@ int main()
             window.draw(vertices.data(), pointCount, sf::PrimitiveType::Points);
             window.draw(vertices.data() + pointCount, vertices.size() - pointCount, sf::PrimitiveType::Lines);
            
-            // Desenhar grafos
-            graph.drawGraph(window);
+            if (toggleGraphs) {
+                // Desenhar grafos
+                graph.drawGraph(window);
+            }
+
 
             // Desenhar Convex Hull
             window.draw(convexHull);
-            
+
+            // desenhar caminho
+            graph.drawAStarPath(sf::Vector2<double>(points[0].getX(), points[0].getY()),
+                sf::Vector2<double>(points[points.size()-1].getX(), points[points.size()-1].getY()), window);
+            std::cout << "From: " << points[0].getX() << ", " << points[0].getY() << " to "
+                << points[points.size() - 1].getX() << ", " << points[points.size() - 1].getY() << ".\n";
         }
 
 
