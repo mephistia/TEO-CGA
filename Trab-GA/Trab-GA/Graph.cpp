@@ -29,13 +29,6 @@ void Graph::generateGraph(Diagram diagram)
 	int edges = allEdges.size(); // n
 	std::cout << "Pontos: " << points << "\n";
 	std::cout << "Edges: " << edges << "\n";
-	
-	head = new Node * [points];
-	for (int i = 0; i < points; i++) {
-		head[i] = nullptr;
-	}
-
-	headId = 0;
 
 	for (int i = 0; i < edges; i++) {
 
@@ -43,82 +36,99 @@ void Graph::generateGraph(Diagram diagram)
 		// pois existem linhas que cortam com as bordas
 		if (allEdges[i]->lSite && allEdges[i]->rSite) {
 			std::cout << "Testando a Edge " << i << "\n";
-			// cálculo da distância dos pontos que a edge corta
+
+			// Pega os pontos que a edge separa
 			sf::Vertex begin(sf::Vector2f(allEdges[i]->lSite->p), sf::Color::Yellow);
 			sf::Vertex end(sf::Vector2f(allEdges[i]->rSite->p), sf::Color::Yellow);
-			
-			double distance = dist(begin, end);
-				
-			sf::Vector2<double> src = (sf::Vector2<double>)begin.position;
-			sf::Vector2<double> dest = (sf::Vector2<double>)end.position;
 
-			int srcPos = -1;
-			int destPos = -1;
+			// Cria os Waypoints com os pontos
+			Waypoint* w1 = new Waypoint((int)begin.position.x, (int)begin.position.y);
+			Waypoint *w2 = new Waypoint((int)end.position.x,(int)end.position.y);
 
-			// Encontrar a posição de src e dest
-			for (int i = 0; i < points; i++) {
-				if ((int)src.x == (int)allCells[i]->site.p.x &&
-					(int)src.y == (int)allCells[i]->site.p.y) {
-					srcPos = i;
-				}
-				if ((int)dest.x == (int)allCells[i]->site.p.x &&
-					(int)dest.y == (int)allCells[i]->site.p.y) {
-					destPos = i;
-				}
+			auto it1 = waypoints.find(*w1);
+			auto it2 = waypoints.find(*w2);
+
+			// se já existe esse ponto, extrai e insere com o novo vizinho
+			if (it1 != waypoints.end()) {
+				auto elem = waypoints.extract(it1);
+				Waypoint w = elem.value();
+				w.neighbors.insert(w2);
+				waypoints.insert(w);
+			}
+			// se não, adiciona o vizinho e insere
+			else {
+				w1->neighbors.insert(w2);
+				waypoints.insert(*w1);
 			}
 
-			// Nodo de adjacência
-			Node* newNode = createNode(dest, distance, head[srcPos]);
-			head[srcPos] = newNode;
-			headId++;
+			if (it2 != waypoints.end()) {
+				auto elem = waypoints.extract(it2);
+				Waypoint w = elem.value();
+				w.neighbors.insert(w1);
+				waypoints.insert(w);
+			}
+			else {
+				w2->neighbors.insert(w1);
+				waypoints.insert(*w2);
+			}
 
-			// Grafo de duas vias
-			newNode = createNode(src, distance, head[destPos]);
-			head[destPos] = newNode;
-			headId++;
-			
 			// Linhas
 			sf::Vector2<sf::Vertex> line(begin, end);
-			sf::Vector2<sf::Vertex> lineEnd(end, begin);
 
-			// criar line se ainda não existir
+			// criar line
 			auto pos1 = std::find(lines.begin(), lines.end(), line);
 
 			// se chegou no fim do contêiner é porque não existe
 			if (pos1 == lines.end()) {
 				// adiciona
 				lines.push_back(line);
-				// imprimir a nova linha
+
+				// Debug: imprimir a nova linha
 				std::cout << "Line: ";
 				std::cout << "(" << line.x.position.x << ", " << line.x.position.y << ") -> ";
 				std::cout << "(" << line.y.position.x << ", " << line.y.position.y << ")\n";
 			}
-
 		}
 	}
+
 }
+
 
 // Desenhar após o usuário clicar em dois pontos
 void Graph::drawAStarPath(sf::Vector2<double> fromPoint, sf::Vector2<double> toPoint, sf::RenderWindow &window)
 {
-	// gerar o caminho
-	AStar(fromPoint, toPoint);
+	Waypoint start((int)fromPoint.x, (int)fromPoint.y);
+	Waypoint goal((int)toPoint.x, (int)toPoint.y);
 
-	// criar vetor de linhas
 
-	// guarda todas as linhas
-	for (std::pair<sf::Vector2<double>, sf::Vector2<double>> mLine : cameFrom) {
+	// retornar o iterador
+	auto iS = waypoints.find(start);
+	auto iG = waypoints.find(goal);
 
-		// Transformar em int para evitar erros de desvio
-		sf::Vertex begin(sf::Vector2f((sf::Vector2<int>)mLine.first), sf::Color::Green);
-		sf::Vertex end(sf::Vector2f((sf::Vector2<int>)mLine.second), sf::Color::Green);
+	if (iS == waypoints.end() || iG == waypoints.end())
+		std::cout << "\nERROR: WAYPOINTS NOT FOUND\n";
 
-		sf::Vector2<sf::Vertex> line(end, begin);
-
-		path.push_back(line);
-		std::reverse(std::begin(path), std::end(path));
+	if (toPoint == fromPoint) {
+		std::cout << "\nERROR: SAME WAYPOINTS\n";
+		return;
 	}
+	// gerar o caminho com os pontos
+	AStar(*iS, *iG);
+	buildAStarPath();
 
+	// gerar as linhas
+	for (int i = 0; i < finalPath.size(); i++) {
+		std::cout << "Creating lines from point " << i << ".\n";
+	    if (i != finalPath.size() - 1) {
+			sf::Vertex begin(sf::Vector2f(finalPath[i]->point), sf::Color::Green);
+			sf::Vertex end(sf::Vector2f(finalPath[i+1]->point), sf::Color::Green);
+
+			sf::Vector2<sf::Vertex> line(begin, end);
+
+			path.push_back(line);
+		}
+	}
+	std::cout << "Drawing lines...\n";
 	// desenhar as linhas
 	for (sf::Vector2<sf::Vertex> vec : path) {
 
@@ -132,113 +142,93 @@ void Graph::drawAStarPath(sf::Vector2<double> fromPoint, sf::Vector2<double> toP
 
 }
 
-Node* Graph::createNode(sf::Vector2<double> point, double cost, Node* head)
+void Graph::buildAStarPath()
 {
-	Node* newNode = new Node;
-	newNode->point = point;
-	newNode->cost = cost;
-	newNode->next = head;
-	return newNode;
-}
-
-
-// Recuperar ponteiro para a lista de destinos do ponto
-Node* Graph::getHead(sf::Vector2<double> point)
-{
-	// tamanho de head é allCells.size()
-	for (int i = 0; i < allCells.size(); i++) {
-
-		// Converter para int para evitar desvio imperceptível (0.00006)
-		if ((int)point.x == (int)head[i]->point.x &&
-			(int)point.y == (int)head[i]->point.y) {
-			return head[i];
-		}
+	std::cout << "\nBuilding path...\n";
+	// primeiro nodo é o último que veio do cálculo
+	if (nodes.size() == 0) {
+		std::cout << "\nNO NODES FOUND\n";
+		return;
 	}
-	return nullptr;
-}
+		
 
-// Encontrar nodos de destino
-std::vector<Node*> Graph::neighborsN(Node* N)
-{
-	std::vector<Node*> neighbors;
-	Node* ptr = getHead(N->point);
+	Node *n = nodes[nodes.size() - 1];
 
-	while (ptr != nullptr) {
-		neighbors.push_back(ptr);
-		ptr = ptr->next;
+	// enquanto não chegar no nodo inicial (sem nodo pai)
+	while (n != nullptr) {
+		std::cout << "Pushing point...\n";
+		finalPath.push_back(n->waypoint); // coloca o waypoint do ponto final
+		n = n->from; // e substitui pelo nodo pai
 	}
-	return neighbors;
+	// inverte para ficar do início para o fim (pai para filhos)
+	std::reverse(std::begin(finalPath), std::end(finalPath));
+	std::cout << "All points pushed.\n\n";
 }
-
-std::vector<Node*> Graph::neighborsN(sf::Vector2<double> N)
-{
-	std::vector<Node*> neighbors;
-
-	Node* ptr = getHead(N);
-
-	while (ptr != nullptr) {
-		neighbors.push_back(ptr);
-		ptr = ptr->next;
-	}
-
-	return neighbors;
-}
-
 
 // A*
-void Graph::AStar(sf::Vector2<double> startPoint, sf::Vector2<double> goalPoint)
+void Graph::AStar(Waypoint startPoint, Waypoint goalPoint)
 {
-	PriorityQueue frontier;
-	frontier.put(startPoint, 0);
+	if (startPoint == goalPoint) {
+		std::cout << "\nERROR: SAME POINT\n";
+		return;
+	}
 
-	cameFrom[startPoint] = startPoint;
+	// Lista de pontos disponíveis (já organizados pelo menor custo)
+	PriorityQueue open;
 
-	std::unordered_map<sf::Vector2<double>, double> distance;
-	distance[startPoint] = 0;
+	// Criar nodo para o início e colocar como ponto disponível
+	Node* start = new Node(&startPoint, nullptr, 0);
+	open.put(start, start->cost);
 
-	std::cout << "Visiting " << startPoint.x << ", " << startPoint.y << '\n';
+	// Lista de pontos visitados 
+	std::vector<Waypoint> closed;
 
+	std::cout << "Visiting " << startPoint.point.x << ", " << startPoint.point.y << '\n';
 
-	while (!frontier.empty()) {
+	// Enquanto ainda houver nodos disponíveis para visitar
+	while (!open.empty()) {
 
-		sf::Vector2<double> current = frontier.get(); // copia o elemento
-
-		 //Se chegou no ponto final, sai do loop
-		if (current == goalPoint)
+		Node* current = open.get(); // coloca o nodo e remove do open
+		std::cout << "Point current set.\n";
+		 //Se chegou no ponto final, adiciona nos nodos e sai do loop
+		if (current->waypoint == &goalPoint) {
+			nodes.push_back(current);
+			std::cout << "Goal point! \n";
 			break;
+		}
 
-		 //Para cada destino
-		for (Node* next : neighborsN(current)) {
+		// Teste
+		if (current == nullptr) {
+			break;
+		}
 
-			 //Calcula novo custo
-			double newCost = distance[current] + dist(current, next->point);
- 
-			auto pos = std::find_if(distance.begin(), distance.end(), 
-				[next](std::pair<const sf::Vector2<double>, double> n) -> bool {return
-				((int)n.first.x == (int)next->point.x) && 
-				((int)n.first.y == (int)next->point.y); 
-				});
+		// Coloca o ponto na lista dos visitados
+		closed.push_back(*current->waypoint);
+		std::cout << "Point is now closed.\n";
 
-			 //se o custo do próximo é = ou < que a distância
-			if (distance.find(next->point) == distance.end() || newCost < distance[next->point]) { 
-				// define nova distância
-				distance[next->point] = newCost;
-				// adiciona na fronteira com prioridade do custo atual
-				// até o calculo do custo final
-				double priority = newCost + dist(next->point, goalPoint);
-				frontier.put(next->point, priority);
-				cameFrom[next->point] = current;
-				std::cout << "Visiting " << next->point.x << ", " << next->point.y << '\n';
+
+		 // Para cada vizinho do atual
+		for (Waypoint* neighbor : current->waypoint->neighbors) {
+			std::cout << "Visiting a neighbor.\n";
+			// Se não encontrou o ponto na lista de visitados
+			if (std::find(closed.begin(), closed.end(), *neighbor) == closed.end()) {
+				std::cout << "It's a new point!.\n";
+				// Calcular a heurística
+				double heuristic = calcHeuristic(*neighbor, goalPoint);
+
+				// Coloca na lista de pontos disponíveis
+				Node* newNode = new Node(neighbor, current, heuristic);
+				open.put(newNode,heuristic);
+				std::cout << "Point is now open.\n\n";
 			}
 		}
 	}
-
-	std::cout << "Goal point! \n";
-
 }
 
-
-
+inline double Graph::calcHeuristic(Waypoint w1, Waypoint w2)
+{
+	return dist(w1.point,w1.point);
+}
 
 // Distância euclidiana
 double Graph::dist(sf::Vertex p, sf::Vertex q)
@@ -269,13 +259,13 @@ void Graph::drawGraph(sf::RenderWindow &window)
 void Graph::clearGraph()
 {
 	lines.clear();
-	head = nullptr;
-	headId = 0;
 }
 
 void Graph::clearAStarPath()
 {
-	cameFrom.clear();
+	waypoints.clear();
+	finalPath.clear();
+	nodes.clear();
 	path.clear();
 }
 

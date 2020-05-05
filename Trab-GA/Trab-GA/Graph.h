@@ -1,11 +1,13 @@
 #pragma once
 #include "GrahamScan.h"
 #include "Node.h"
-#include <unordered_map>
 #include <queue>
+#include <unordered_set>
+#include "Waypoint.h"
 
-typedef std::pair<double, sf::Vector2<double>> PQelem;
+typedef std::pair<double, Node*> PQelem;
 
+// Fila de prioridade pelo menor primeiro
 struct PriorityQueue {
 	std::priority_queue<PQelem, std::vector<PQelem>, std::greater<PQelem>> elements;
 
@@ -13,12 +15,12 @@ struct PriorityQueue {
 		return elements.empty();
 	}
 
-	inline void put(sf::Vector2<double> item, double priority) {
+	inline void put(Node* item, double priority) {
 		elements.emplace(priority, item);
 	}
 
-	sf::Vector2<double> get() {
-		sf::Vector2<double> bestItem = elements.top().second;
+	Node* get() {
+		Node* bestItem = elements.top().second;
 		elements.pop();
 		return bestItem;
 	}
@@ -26,7 +28,7 @@ struct PriorityQueue {
 };
 
 namespace std {
-	// Sobrecarga de operador para PQelem
+	// Sobrecarga de operador para PQelem (prioridade)
 	inline bool operator<(PQelem const& a, PQelem const& b) {
 		return a.first < b.first;
 	}
@@ -35,13 +37,13 @@ namespace std {
 		return a.first > b.first;
 	}
 
-	// hash vector2<double>
-	template <> struct hash<sf::Vector2<double>> {
-		typedef sf::Vector2<double> argument_type;
+	 //// hash Waypoint
+	template <> struct hash<Waypoint> {
+		typedef Waypoint argument_type;
 		typedef std::size_t result_type;
-		std::size_t operator()(const sf::Vector2<double>& id) const noexcept {
-			std::size_t h1 = std::hash<double>{}(id.x);
-			std::size_t h2 = std::hash<double>{}(id.y);
+		std::size_t operator()(const Waypoint& id) const noexcept {
+			std::size_t h1 = std::hash<double>{}(id.point.x);
+			std::size_t h2 = std::hash<double>{}(id.point.y);
 			return (h1 ^ (h2 << 1));
 		}
 	};
@@ -57,16 +59,12 @@ public:
 	void generateGraph(Diagram diagram);
 
 	void drawAStarPath(sf::Vector2<double> fromPoint, sf::Vector2<double> toPoint, sf::RenderWindow &window);
+		
+	void buildAStarPath();
 
-	inline Node* createNode(sf::Vector2<double> point, double cost, Node* head);
+	inline void AStar(Waypoint startPoint, Waypoint goalPoint);
 
-	inline Node* getHead(sf::Vector2<double> point);
-
-	inline std::vector<Node*> neighborsN(Node* N);
-
-	inline std::vector<Node*> neighborsN(sf::Vector2<double> N);
-
-	inline void AStar(sf::Vector2<double> startPoint, sf::Vector2<double> goalPoint);
+	inline double calcHeuristic(Waypoint w1, Waypoint w2);
 
 	inline double dist(sf::Vertex p, sf::Vertex q);
 
@@ -81,23 +79,26 @@ public:
 	inline friend bool operator==(const sf::Vector2<sf::Vertex>& a, const sf::Vector2<sf::Vertex>& b);
 	inline friend bool operator<(const sf::Vector2<double>& a, const sf::Vector2<double>& b);
 	inline friend bool operator>(const sf::Vector2<double>& a, const sf::Vector2<double>& b);
-
+	
+	inline friend bool operator==(const Waypoint& a, const Waypoint& b);
+	inline friend bool operator<(const Waypoint& a, const Waypoint& b);
+	inline friend bool operator>(const Waypoint& a, const Waypoint& b); inline friend bool operator==(const sf::Vector2<double>& a, const sf::Vector2<double>& b);
+	
+	inline friend bool operator==(const Node& a, const Node& b);
 private:
 
 	// Linhas que serão desenhadas
 	std::vector<sf::Vector2<sf::Vertex>> lines; // Grafo
 	std::vector<sf::Vector2<sf::Vertex>> path; // A*
-
-	// Lista de adjacência
-	Node** head;
 	
 	std::vector<Edge*> allEdges;
 	std::vector<Cell*> allCells;
 
-	// Posições
-	std::unordered_map<sf::Vector2<double>, sf::Vector2<double>> cameFrom;
+	// A*
+	std::unordered_set<Waypoint> waypoints; // todos os pontos
+	std::vector<Waypoint*> finalPath; // pontos que o A* passa
+	std::vector<Node*> nodes; // nodos criados pelo A*
 
-	int headId;
 };
 
 
@@ -105,6 +106,9 @@ bool operator==(const sf::Vector2<sf::Vertex>& a, const sf::Vector2<sf::Vertex>&
 	return (a.x == b.x) && (a.y == b.y);
 }
 
+bool operator==(const sf::Vector2<double>& a, const sf::Vector2<double>& b) {
+	return (a.x == b.x) && (a.y == b.y);
+}
 
 bool operator<(const sf::Vector2<double>& a, const sf::Vector2<double>& b) {
 	// se ax < bx retorna true. Se for igual, retorna ay < by. Se não, falso.
@@ -115,3 +119,18 @@ bool operator>(const sf::Vector2<double>& a, const sf::Vector2<double>& b) {
 	return (a.x > b.x) ? true : (a.x == b.x) ? a.y > b.y : false;
 }
 
+bool operator==(const Waypoint& a, const Waypoint& b) {
+	return a.point == b.point;
+}
+
+bool operator>(const Waypoint& a, const Waypoint& b) {
+	return a.point > b.point;
+}
+
+bool operator<(const Waypoint& a, const Waypoint& b) {
+	return a.point < b.point;
+}
+
+bool operator==(const Node& a, const Node& b) {
+	return a.waypoint == b.waypoint;
+}

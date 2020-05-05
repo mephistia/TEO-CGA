@@ -1,8 +1,8 @@
 #pragma once
-#include <SFML/System/Vector2.hpp>
+#include "Waypoint.h"
 struct Node {
-	int id;
-	sf::Vector2<double> point; // Ponto do nodo (Site.p é igual)
+	Node(Waypoint *w, Node* n, double c) { waypoint = w; from = n; cost = c; }
+	Waypoint* waypoint;
 	double cost = 0; // distância entre pontos
-	Node* next; // próximo nodo
+	Node* from; // nodo pai
 };
