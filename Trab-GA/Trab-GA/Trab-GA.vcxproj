@@ -151,6 +151,7 @@
     <ClCompile Include="..\sfVoronoi\src\Diagram.cpp" />
     <ClCompile Include="..\sfVoronoi\src\Edge.cpp" />
     <ClCompile Include="..\sfVoronoi\src\VoronoiDiagramGenerator.cpp" />
+    <ClCompile Include="AStarNode.cpp" />
     <ClCompile Include="GrahamScan.cpp" />
     <ClCompile Include="Graph.cpp" />
     <ClCompile Include="main.cpp" />
@@ -165,11 +166,11 @@
     <ClInclude Include="..\sfVoronoi\src\CircleEventQueue.h" />
     <ClInclude Include="..\sfVoronoi\src\Epsilon.h" />
     <ClInclude Include="..\sfVoronoi\src\RBTree.h" />
+    <ClInclude Include="AStarNode.h" />
     <ClInclude Include="GrahamScan.h" />
     <ClInclude Include="Graph.h" />
     <ClInclude Include="Node.h" />
     <ClInclude Include="Point.h" />
-    <ClInclude Include="Waypoint.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

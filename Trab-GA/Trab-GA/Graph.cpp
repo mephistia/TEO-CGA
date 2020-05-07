@@ -2,6 +2,7 @@
 
 Graph::Graph()
 {
+	AStarDone = false;
 }
 
 Graph::~Graph()
@@ -13,7 +14,6 @@ void Graph::generateGraph(Diagram diagram)
 	// pegar edges
 	allEdges = diagram.edges;
 	allCells = diagram.cells;
-
 	// ordenar por ponto com menor x (ponto à esquerda da edge)
 	std::sort(allEdges.begin(), allEdges.end(), [](Edge *a, Edge *b) {
 		return a->lSite->p.x < b->lSite->p.x;
@@ -25,110 +25,184 @@ void Graph::generateGraph(Diagram diagram)
 
 	// Criar os nodos
 	// Numero de pontos e numero de linhas
-	int points = allCells.size(); // N
-	int edges = allEdges.size(); // n
-	std::cout << "Pontos: " << points << "\n";
-	std::cout << "Edges: " << edges << "\n";
-
-	for (int i = 0; i < edges; i++) {
+	for (int i = 0; i < allEdges.size(); i++) {
 
 		// só adiciona se existir os dois pontos
 		// pois existem linhas que cortam com as bordas
 		if (allEdges[i]->lSite && allEdges[i]->rSite) {
-			std::cout << "Testando a Edge " << i << "\n";
-
-			// Pega os pontos que a edge separa
+			// cálculo da distância dos pontos que a edge corta
 			sf::Vertex begin(sf::Vector2f(allEdges[i]->lSite->p), sf::Color::Yellow);
 			sf::Vertex end(sf::Vector2f(allEdges[i]->rSite->p), sf::Color::Yellow);
+							
+			sf::Vector2<double> src = (sf::Vector2<double>)begin.position;
+			sf::Vector2<double> dest = (sf::Vector2<double>)end.position;
 
-			// Cria os Waypoints com os pontos
-			Waypoint* w1 = new Waypoint((int)begin.position.x, (int)begin.position.y);
-			Waypoint *w2 = new Waypoint((int)end.position.x,(int)end.position.y);
+			// Cria Edge (struct)
+			mEdge newEdge;
+			newEdge.src = src;
+			newEdge.dest = dest;
+			allmEdges.push_back(newEdge);
 
-			auto it1 = waypoints.find(*w1);
-			auto it2 = waypoints.find(*w2);
+			// Edge ao contrário (2 vias)
+			newEdge.src = dest;
+			newEdge.dest = src;
+			allmEdges.push_back(newEdge);
 
-			// se já existe esse ponto, extrai e insere com o novo vizinho
-			if (it1 != waypoints.end()) {
-				auto elem = waypoints.extract(it1);
-				Waypoint w = elem.value();
-				w.neighbors.insert(w2);
-				waypoints.insert(w);
-			}
-			// se não, adiciona o vizinho e insere
-			else {
-				w1->neighbors.insert(w2);
-				waypoints.insert(*w1);
-			}
+			// Se não existe, adiciona
+			Node newNode(src);
+			allPoints.insert(newNode);
+			newNode.point = dest;
+			allPoints.insert(newNode);
 
-			if (it2 != waypoints.end()) {
-				auto elem = waypoints.extract(it2);
-				Waypoint w = elem.value();
-				w.neighbors.insert(w1);
-				waypoints.insert(w);
-			}
-			else {
-				w2->neighbors.insert(w1);
-				waypoints.insert(*w2);
-			}
 
 			// Linhas
 			sf::Vector2<sf::Vertex> line(begin, end);
 
-			// criar line
-			auto pos1 = std::find(lines.begin(), lines.end(), line);
+			// adiciona
+			lines.push_back(line);
 
-			// se chegou no fim do contêiner é porque não existe
-			if (pos1 == lines.end()) {
-				// adiciona
-				lines.push_back(line);
-
-				// Debug: imprimir a nova linha
-				std::cout << "Line: ";
-				std::cout << "(" << line.x.position.x << ", " << line.x.position.y << ") -> ";
-				std::cout << "(" << line.y.position.x << ", " << line.y.position.y << ")\n";
-			}
 		}
 	}
+	buildNeighbors();
+}
 
+inline void Graph::buildNeighbors()
+{
+	Node src, dest;
+	//int i = 0;
+	for (mEdge edge : allmEdges) {
+		// "getPoint"
+		src = getHead(edge.src);
+		dest = getHead(edge.dest);
+		// pega esse ponto em allPoints
+		// e coloca o dest como vizinho
+		auto extract = allPoints.extract(src);
+		src = extract.value();
+
+		extract = allPoints.extract(dest);
+		dest = extract.value();
+		src.neighbors.push_back(dest);
+		dest.neighbors.push_back(src);
+		allPoints.insert(dest);
+		allPoints.insert(src);
+		//std::cout << "\r" << i << " de " << allmEdges.size() << std::flush;
+		//i++;
+	}
+}
+
+Node Graph::getHead(sf::Vector2<double> point)
+{
+	auto pos = std::find_if(allPoints.cbegin(), allPoints.cend(), [point](const Node& node) {
+		return point == node.point;
+		});
+
+	if (pos != allPoints.cend()) {
+		return *pos;
+	}
+	Node null;
+	return null;
 }
 
 
-// Desenhar após o usuário clicar em dois pontos
-void Graph::drawAStarPath(sf::Vector2<double> fromPoint, sf::Vector2<double> toPoint, sf::RenderWindow &window)
+// A*
+void Graph::AStar(sf::Vector2<double> startPoint, sf::Vector2<double> goalPoint)
 {
-	Waypoint start((int)fromPoint.x, (int)fromPoint.y);
-	Waypoint goal((int)toPoint.x, (int)toPoint.y);
+	// Fila de pontos disponíveis (já organizados pelo menor custo)
+	PriorityQueue open;
+
+	// Colocar o primeiro
+	AStarNode* start = new AStarNode(getHead(startPoint), nullptr, 0);
+	open.put(start, start->cost);
 
 
-	// retornar o iterador
-	auto iS = waypoints.find(start);
-	auto iG = waypoints.find(goal);
+	std::vector<Node> closed;
 
-	if (iS == waypoints.end() || iG == waypoints.end())
-		std::cout << "\nERROR: WAYPOINTS NOT FOUND\n";
+	//std::cout << "Visitando: " << startPoint.x << ", " << startPoint.y << '\n';
 
-	if (toPoint == fromPoint) {
-		std::cout << "\nERROR: SAME WAYPOINTS\n";
-		return;
-	}
-	// gerar o caminho com os pontos
-	AStar(*iS, *iG);
-	buildAStarPath();
 
-	// gerar as linhas
-	for (int i = 0; i < finalPath.size(); i++) {
-		std::cout << "Creating lines from point " << i << ".\n";
-	    if (i != finalPath.size() - 1) {
-			sf::Vertex begin(sf::Vector2f(finalPath[i]->point), sf::Color::Green);
-			sf::Vertex end(sf::Vector2f(finalPath[i+1]->point), sf::Color::Green);
+	while (!open.empty()) {
 
-			sf::Vector2<sf::Vertex> line(begin, end);
+		AStarNode* current = open.get(); // copia o elemento
 
-			path.push_back(line);
+		//std::cout << "Ponto atual definido.\n";
+		//Se chegou no ponto final, adiciona nos nodos e sai do loop
+		if (current->point.point == goalPoint) {
+			ANodes.push_back(current);
+			//std::cout << "É o ponto destino! \n";
+			break;
+		}
+
+		// Coloca o ponto na lista dos visitados
+		closed.push_back(current->point);
+		//std::cout << "Ponto está visitado.\n";
+
+		 //Para cada destino
+		for (Node neighbor : current->point.neighbors) {
+
+			//std::cout << "Visitando um vizinho...\n";
+			// Se não encontrou o ponto na lista de visitados
+			if (std::find(closed.begin(), closed.end(), neighbor) == closed.end()) {
+				//std::cout << "É um ponto novo!\n";
+				// Calcular a heurística
+				double heuristic = dist(neighbor.point, goalPoint);
+
+				// Coloca na lista de pontos disponíveis
+				AStarNode* newNode = new AStarNode(neighbor, current, heuristic);
+				open.put(newNode, heuristic);
+				//std::cout << "O ponto está disponível para visitação.\n\n";
+			}
 		}
 	}
-	std::cout << "Drawing lines...\n";
+}
+
+inline void Graph::buildAStarPath()
+{
+	//std::cout << "\nConstruindo caminho...\n";
+	// primeiro nodo é o último que veio do cálculo
+	if (ANodes.size() == 0) {
+		std::cout << "\nNENHUM NODO ENCONTRADO!\n";
+		return;
+	}
+
+	AStarNode* n = ANodes[ANodes.size() - 1];
+
+	// enquanto não chegar no nodo inicial (sem nodo pai)
+	while (n != nullptr) {
+		//std::cout << "Colocando o ponto...\n";
+		finalPath.push_back(n->point); // coloca o nodo do ponto final
+		n = n->from; // e substitui pelo nodo pai
+	}
+	// inverte para ficar do início para o fim (pai para filhos)
+	std::reverse(std::begin(finalPath), std::end(finalPath));
+	//std::cout << "Todos os pontos adicionados e vetor invertido.\n\n";
+	ANodes.clear();
+}
+
+void Graph::drawAStarPath(sf::Vector2<double> fromPoint, sf::Vector2<double> toPoint, sf::RenderWindow& window)
+{
+	if (!AStarDone) {
+		AStar(fromPoint, toPoint);
+		buildAStarPath();
+		// gerar as linhas
+		for (int i = 0; i < finalPath.size(); i++) {
+			//std::cout << "Criando linhas do ponto " << i << ".\n";
+			if (i != finalPath.size() - 1) {
+				sf::Vertex begin(sf::Vector2f(finalPath[i].point), sf::Color::Green);
+				sf::Vertex end(sf::Vector2f(finalPath[i + 1].point), sf::Color::Green);
+
+				sf::Vector2<sf::Vertex> line(begin, end);
+
+				path.push_back(line);
+			}
+		}
+		allmEdges.clear();
+		allPoints.clear();
+		finalPath.clear();
+		AStarDone = true;
+	}
+
+	
+	//std::cout << "Desenhando linhas...\n";
 	// desenhar as linhas
 	for (sf::Vector2<sf::Vertex> vec : path) {
 
@@ -139,96 +213,8 @@ void Graph::drawAStarPath(sf::Vector2<double> fromPoint, sf::Vector2<double> toP
 
 		window.draw(pathline, 2, sf::Lines);
 	}
-
 }
 
-void Graph::buildAStarPath()
-{
-	std::cout << "\nBuilding path...\n";
-	// primeiro nodo é o último que veio do cálculo
-	if (nodes.size() == 0) {
-		std::cout << "\nNO NODES FOUND\n";
-		return;
-	}
-		
-
-	Node *n = nodes[nodes.size() - 1];
-
-	// enquanto não chegar no nodo inicial (sem nodo pai)
-	while (n != nullptr) {
-		std::cout << "Pushing point...\n";
-		finalPath.push_back(n->waypoint); // coloca o waypoint do ponto final
-		n = n->from; // e substitui pelo nodo pai
-	}
-	// inverte para ficar do início para o fim (pai para filhos)
-	std::reverse(std::begin(finalPath), std::end(finalPath));
-	std::cout << "All points pushed.\n\n";
-}
-
-// A*
-void Graph::AStar(Waypoint startPoint, Waypoint goalPoint)
-{
-	if (startPoint == goalPoint) {
-		std::cout << "\nERROR: SAME POINT\n";
-		return;
-	}
-
-	// Lista de pontos disponíveis (já organizados pelo menor custo)
-	PriorityQueue open;
-
-	// Criar nodo para o início e colocar como ponto disponível
-	Node* start = new Node(&startPoint, nullptr, 0);
-	open.put(start, start->cost);
-
-	// Lista de pontos visitados 
-	std::vector<Waypoint> closed;
-
-	std::cout << "Visiting " << startPoint.point.x << ", " << startPoint.point.y << '\n';
-
-	// Enquanto ainda houver nodos disponíveis para visitar
-	while (!open.empty()) {
-
-		Node* current = open.get(); // coloca o nodo e remove do open
-		std::cout << "Point current set.\n";
-		 //Se chegou no ponto final, adiciona nos nodos e sai do loop
-		if (current->waypoint == &goalPoint) {
-			nodes.push_back(current);
-			std::cout << "Goal point! \n";
-			break;
-		}
-
-		// Teste
-		if (current == nullptr) {
-			break;
-		}
-
-		// Coloca o ponto na lista dos visitados
-		closed.push_back(*current->waypoint);
-		std::cout << "Point is now closed.\n";
-
-
-		 // Para cada vizinho do atual
-		for (Waypoint* neighbor : current->waypoint->neighbors) {
-			std::cout << "Visiting a neighbor.\n";
-			// Se não encontrou o ponto na lista de visitados
-			if (std::find(closed.begin(), closed.end(), *neighbor) == closed.end()) {
-				std::cout << "It's a new point!.\n";
-				// Calcular a heurística
-				double heuristic = calcHeuristic(*neighbor, goalPoint);
-
-				// Coloca na lista de pontos disponíveis
-				Node* newNode = new Node(neighbor, current, heuristic);
-				open.put(newNode,heuristic);
-				std::cout << "Point is now open.\n\n";
-			}
-		}
-	}
-}
-
-inline double Graph::calcHeuristic(Waypoint w1, Waypoint w2)
-{
-	return dist(w1.point,w1.point);
-}
 
 // Distância euclidiana
 double Graph::dist(sf::Vertex p, sf::Vertex q)
@@ -263,9 +249,11 @@ void Graph::clearGraph()
 
 void Graph::clearAStarPath()
 {
-	waypoints.clear();
+	ANodes.clear();
 	finalPath.clear();
-	nodes.clear();
 	path.clear();
+	allmEdges.clear();
+	allPoints.clear();
+	AStarDone = false;
 }
 

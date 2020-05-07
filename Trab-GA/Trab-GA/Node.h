@@ -1,8 +1,10 @@
 #pragma once
-#include "Waypoint.h"
+#include <SFML/System/Vector2.hpp>
+#include <unordered_set>
 struct Node {
-	Node(Waypoint *w, Node* n, double c) { waypoint = w; from = n; cost = c; }
-	Waypoint* waypoint;
-	double cost = 0; // distância entre pontos
-	Node* from; // nodo pai
+	Node(sf::Vector2<double> p) { point = p; }
+	Node() {}
+	~Node() {}
+	sf::Vector2<double> point; // Ponto do nodo (Site.p é igual)
+	std::vector<Node> neighbors; // vizinhos
 };

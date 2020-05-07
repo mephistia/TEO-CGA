@@ -227,14 +227,12 @@ int main()
             // Desenhar Convex Hull
             window.draw(convexHull);
 
-            // desenhar caminho (teste sem seleção do usuário)
-            graph.drawAStarPath(sf::Vector2<double>(points[0].getX(), points[0].getY()),
-                sf::Vector2<double>(points[points.size()-1].getX(), points[points.size()-1].getY()), window);
-            std::cout << "From: " << points[0].getX() << ", " << points[0].getY() << " to "
-                << points[points.size() - 1].getX() << ", " << points[points.size() - 1].getY() << ".\n";
+            // desenhar caminho
+            sf::Vector2<double> P1 = sf::Vector2<double>(points[0].getX(), points[0].getY());
+            sf::Vector2<double> P2 = sf::Vector2<double>(points[points.size()-1].getX(), points[points.size() - 1].getY());
+
+            graph.drawAStarPath(P1, P2, window);
         }
-
-
         window.display();
     }
 
