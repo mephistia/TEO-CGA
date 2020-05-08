@@ -27,6 +27,7 @@ int main()
     // Flags
     bool isUserDone = false;
     bool isHullDone = false;
+    bool isVoronoiDone = false;
     bool isWaypointChosen = false;
 
     bool toggleHull = true;
@@ -53,6 +54,9 @@ int main()
 
     // Gerar Grafo
     Graph graph;
+
+    // Pontos para A*
+    sf::Vector2i start = sf::Vector2i(0,0), goal = sf::Vector2i(0, 0);
 
     // Gerar desenho
     auto updateVisuals = [&]() {
@@ -87,7 +91,7 @@ int main()
         graph.generateGraph(*compute);
         diagram.reset(compute);
         delete sites;
-        updateVisuals();        
+        isVoronoiDone = true;
     };
 
 
@@ -111,31 +115,58 @@ int main()
         sf::Event event;
         while (window.pollEvent(event))
         {
-            if (event.type == sf::Event::Closed)
-                window.close();
+            switch (event.type){
+            
+            case sf::Event::Closed:
+                    window.close();
 
-            // Identificar clique
-            else  if (event.type == sf::Event::MouseButtonReleased)
-            {
+                // Identificar clique
+            case sf::Event::MouseButtonReleased:
                 if (event.mouseButton.button == sf::Mouse::Left)
-                {
+                { 
                     // Pegar posição do mouse
-                    sf::Vector2i mPos = sf::Mouse::getPosition(window);
+                    sf::Vector2f mPos = window.mapPixelToCoords(sf::Mouse::getPosition(window));
 
-                    // Criar Ponto se estiver dentro da margem
+                    // Criar Ponto se estiver dentro da margem e
+                    // o usuário ainda não tiver apertado espaço
                     if ((mPos.x > 25 && mPos.x < w_width - 25) &&
                         (mPos.y > 25 && mPos.y < w_height - 25) &&
-                        isUserDone == false) {
+                        !isUserDone) {
                         Point mousePoint(mPos.x, mPos.y);
                         points.push_back(mousePoint);
                     }
 
+                    // se estiver na área de um ponto (3 pixels de diferença
+                    else if (isUserDone) {
+                        if (start == sf::Vector2i(0, 0)) {
+                            for (Point& p : points) {
+                                if (p.getShape().getGlobalBounds().contains(mPos)) {
+                                    // deixar verde
+                                    p.setColor(sf::Color(0, 255, 174));
+                                    start.x = (int)p.getX();
+                                    start.y = (int)p.getY();
+                                }
+                            }
+                        }
+                        else if (goal == sf::Vector2i(0, 0)) {
+                            for (Point& p : points) {
+                                if (p.getShape().getGlobalBounds().contains(mPos)) {
+                                    // deixar verde
+                                    p.setColor(sf::Color(0, 255, 174));
+                                    goal.x = p.getX();
+                                    goal.y = p.getY();
+                                    isWaypointChosen = true;
 
+                                }
+                            }
+                        }
+                        
+                    }
                 }
-            }
+                
 
-            // Identificar barra de espaço
-            else if (event.type == sf::Event::KeyReleased) {
+                // Identificar barra de espaço
+            case sf::Event::KeyReleased:
                 if (event.key.code == sf::Keyboard::Space){
 
                     // Conferir quantidade de pontos após remover duplicatas
@@ -145,7 +176,6 @@ int main()
                         // Impedir o usuário de adicionar mais pontos
                         isUserDone = true;
 
-                        
                         ch = gScan.CreateHull(points);
 
                         if (ch.size() > 0) {
@@ -162,9 +192,8 @@ int main()
                             // Flag para verificar se pode desenhar as linhas
                             isHullDone = true;                           
                             toggleGraphs = true;
+                            toggleHull = true;
                             instructions.setString("Z = Toggle Hull. X = Toggle Graphs. C = Restart. Click = Select origin and waypoint.");
-
-
                         }
                         else {
                             instructions.setString("Insuficient points. Try unique points. C = Restart.");
@@ -177,18 +206,19 @@ int main()
 
                 // Resetar
                 else if (event.key.code == sf::Keyboard::C) {
-                    if (isUserDone) {
+                    if (isUserDone && isHullDone) {
+                        convexHull.clear();
+                        graph.clearGraph();
+                        graph.clearAStarPath();
+                        isHullDone = false;
+                        isVoronoiDone = false;
                         points.clear();
                         ch.clear();
-
-                        if (isHullDone) {
-                            convexHull.clear();
-                            graph.clearGraph();
-                            graph.clearAStarPath();
-                            isHullDone = false;
-                        }
                         instructions.setString("Click = Add point. Spacebar = Compute stuff");
                         isUserDone = false;
+                        isWaypointChosen = false;
+                        start = sf::Vector2i(0, 0);
+                        goal = sf::Vector2i(0, 0);
                     }
 
                 }
@@ -197,12 +227,14 @@ int main()
                         toggleGraphs = !toggleGraphs;
                     }
                 }
+                else if (event.key.code == sf::Keyboard::Z) {
+                    if (isHullDone)
+                        toggleHull = !toggleHull;
+                }
             }
 
-
-       
         }
-
+       
         window.clear();
 
         // Desenhar os pontos
@@ -214,10 +246,14 @@ int main()
         if (isHullDone) {
             // Desenhar Voronoi
             auto pointCount = points.size();
-            generateVoronoi(pointCount);
+
+            if (!isVoronoiDone)
+                generateVoronoi(pointCount);
+
+            updateVisuals();
             window.draw(vertices.data(), pointCount, sf::PrimitiveType::Points);
             window.draw(vertices.data() + pointCount, vertices.size() - pointCount, sf::PrimitiveType::Lines);
-           
+
             if (toggleGraphs) {
                 // Desenhar grafos
                 graph.drawGraph(window);
@@ -225,16 +261,22 @@ int main()
 
 
             // Desenhar Convex Hull
-            window.draw(convexHull);
+            if (toggleHull)
+                window.draw(convexHull);
 
             // desenhar caminho
-            sf::Vector2<double> P1 = sf::Vector2<double>(points[0].getX(), points[0].getY());
-            sf::Vector2<double> P2 = sf::Vector2<double>(points[points.size()-1].getX(), points[points.size() - 1].getY());
+            if (isWaypointChosen) {
+                sf::Vector2i P1 = sf::Vector2i(start.x, start.y);
+                sf::Vector2i P2 = sf::Vector2i(goal.x, goal.y);
 
-            graph.drawAStarPath(P1, P2, window);
+                graph.drawAStarPath(P1, P2, window);
+            }
+            
         }
         window.display();
     }
 
     return 0;
 }
+
+

@@ -21,10 +21,10 @@ public:
 
 	bool operator < (const Point& P);
 
-	void setX(float newX);
+	void setX(int newX);
 	float getX();
 
-	void setY(float newY);
+	void setY(int newY);
 	float getY();
 
 	void setAngle(double newAngle);
@@ -32,10 +32,12 @@ public:
 	
 	sf::CircleShape getShape();
 
+	void setColor(sf::Color c);
+
 	sf::Vector2<double> getVector();
 
 private:
-	float x, y;
+	int x, y;
 	double angle;
 	// Definir Ponto
 	sf::CircleShape shape;

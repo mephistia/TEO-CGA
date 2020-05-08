@@ -6,7 +6,7 @@ Point::Point()
 	x = 0;
 	y = 0;
 	angle = -1;
-	shape.setRadius(3.0);
+	shape.setRadius(5.0);
 	shape.setFillColor(sf::Color::White);
 	shape.setPosition(x, y);
 }
@@ -20,7 +20,7 @@ Point::Point(float a, float b)
 	x = a;
 	y = b;
 	angle = -1;
-	shape.setRadius(3.0);
+	shape.setRadius(5.0);
 	shape.setFillColor(sf::Color::White);
 	shape.setPosition(x, y);
 	shape.setOrigin(shape.getRadius(), shape.getRadius());
@@ -47,7 +47,7 @@ bool Point::operator<(const Point& P)
 }
 
 
-void Point::setX(float newX)
+void Point::setX(int newX)
 {
 	x = newX;
 }
@@ -57,7 +57,7 @@ float Point::getX()
 	return x;
 }
 
-void Point::setY(float newY)
+void Point::setY(int newY)
 {
 	y = newY;
 }
@@ -80,6 +80,11 @@ double Point::getAngle()
 sf::CircleShape Point::getShape()
 {
 	return shape;
+}
+
+void Point::setColor(sf::Color c)
+{
+	shape.setFillColor(c);
 }
 
 

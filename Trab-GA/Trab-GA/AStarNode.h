@@ -2,9 +2,11 @@
 #include "Node.h"
 struct AStarNode
 {
-	AStarNode(Node p, AStarNode* f, double c) { point = p; cost = c; from = f; }
+	AStarNode() {}
+	~AStarNode() {}
+	AStarNode(Node p, AStarNode* f) { point = p; from = f; }
 	Node point;
-	double cost;
 	AStarNode* from;
+	double f, gSoFar, h;
 };
 

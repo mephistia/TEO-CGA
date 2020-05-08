@@ -1,10 +1,10 @@
 #pragma once
 #include <SFML/System/Vector2.hpp>
-#include <unordered_set>
+#include <vector>
 struct Node {
-	Node(sf::Vector2<double> p) { point = p; }
+	Node(sf::Vector2i p) { point = p; }
 	Node() {}
 	~Node() {}
-	sf::Vector2<double> point; // Ponto do nodo (Site.p é igual)
+	sf::Vector2i point; // Ponto do nodo (Site.p é igual)
 	std::vector<Node> neighbors; // vizinhos
 };
